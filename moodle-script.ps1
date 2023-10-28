@@ -1,10 +1,12 @@
-# Extract login token and get initial cookies
-$LOGIN_TOKEN = lua ./extract_login_token.lua $(
-    curl --cookie-jar cookies -s https://edu.mmcs.sfedu.ru/login/index.php |
-    sls "logintoken"
+echo "Extracting login token and getting initial cookies..."
+
+$LOGIN_TOKEN = lua ./extract_login_token.lua $( `
+    curl --cookie-jar cookies -s https://edu.mmcs.sfedu.ru/login/index.php | `
+    sls "logintoken" `
 )
 
-# Log in with correct information
+echo "Logging in..."
+
 curl --cookie-jar cookies -b cookies -s `
     -d "anchor="                        `
     -d "logintoken=$LOGIN_TOKEN"        `
@@ -12,8 +14,9 @@ curl --cookie-jar cookies -b cookies -s `
     -d "password=$(cat password.txt)"   `
     -L https://edu.mmcs.sfedu.ru/login/index.php > $null
 
-# Get the page :)
-$ID = 11373 ;
+$ID = $args[0]
+echo "Id is $ID. Extracting stuff..."
+
 $SESSKEY = lua extract_sesskey.lua $(
     curl -s -b cookies "https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$ID" |
     sls "sesskey=" |
@@ -25,9 +28,9 @@ $ITEM_ID = lua extract_itemid.lua $(
     sls "itemid="
 )
 
-$FILE = $args[0]
+$FILE = $args[1]
 
-# Upload a file ??!
+echo "Uploading $FILE"
 curl -b cookies `
     -F "repo_upload_file=@$FILE" `
     -F "repo_id=3" `
@@ -38,7 +41,7 @@ curl -b cookies `
     -F "sesskey=$SESSKEY" `
     https://edu.mmcs.sfedu.ru/repository/repository_ajax.php?action=upload
 
-# Save that bad boy
+echo "Saving..."
 curl -b cookies `
     -d "action=savesubmission" `
     -d "id=$ID" `
@@ -48,3 +51,5 @@ curl -b cookies `
     -d "files_filemanager=$ITEM_ID" `
     -d "mform_isexpanded_id_submissionheader=1" `
     -L https://edu.mmcs.sfedu.ru/mod/assign/view.php
+
+echo "Success!"
