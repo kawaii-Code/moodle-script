@@ -1,15 +1,13 @@
-echo "Extracting login token and getting initial $COOKIES..."
-
-$COOKIES = "$PSScriptRoot/cookies"
+$COOKIES_PATH = "$PSScriptRoot/cookies"
 
 $LOGIN_TOKEN = lua "$PSScriptRoot/extract_login_token.lua" $( `
-    curl --cookie-jar $COOKIES -s https://edu.mmcs.sfedu.ru/login/index.php | `
+    curl --cookie-jar $COOKIES_PATH -s https://edu.mmcs.sfedu.ru/login/index.php | `
     sls "logintoken" `
 )
 
-echo "Logging in..."
+echo "Вход в аккаунт..."
 
-curl --cookie-jar $COOKIES -b $COOKIES -s `
+curl --cookie-jar $COOKIES_PATH -b $COOKIES_PATH -s `
     -d "anchor="                        `
     -d "logintoken=$LOGIN_TOKEN"        `
     -d "username=$(cat "$PSScriptRoot/username.txt")"   `
@@ -17,24 +15,23 @@ curl --cookie-jar $COOKIES -b $COOKIES -s `
     -L https://edu.mmcs.sfedu.ru/login/index.php > $null
 
 $ID = $args[0]
-echo "Id is $ID. Extracting stuff..."
 
 $SESSKEY = lua "$PSScriptRoot/extract_sesskey.lua" $(
-    curl -s -b $COOKIES "https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$ID" |
+    curl -s -b $COOKIES_PATH "https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$ID" |
     sls "sesskey=" |
     select -first 1
 )
 
 $ITEM_ID = lua "$PSScriptRoot/extract_itemid.lua" $(
-    curl -s -b $COOKIES "https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$ID&action=editsubmission" |
+    curl -s -b $COOKIES_PATH "https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$ID&action=editsubmission" |
     sls "itemid="
 )
 
 for ($i = 1; $i -lt $args.Length; $i++) {
     $FILE = $args[$i]
 
-    echo "Uploading '$FILE'"
-    curl -s -b $COOKIES `
+    echo "Выкладывается '$FILE'"
+    curl -s -b $COOKIES_PATH `
         -F "repo_upload_file=@$FILE" `
         -F "repo_id=3" `
         -F "env=filemanager" `
@@ -45,8 +42,8 @@ for ($i = 1; $i -lt $args.Length; $i++) {
         https://edu.mmcs.sfedu.ru/repository/repository_ajax.php?action=upload > $null
 }
 
-echo "Saving..."
-curl -s -b $COOKIES `
+echo "Сохранение ответа..."
+curl -s -b $COOKIES_PATH `
     -d "action=savesubmission" `
     -d "id=$ID" `
     -d "userid=33045" `
@@ -56,4 +53,4 @@ curl -s -b $COOKIES `
     -d "mform_isexpanded_id_submissionheader=1" `
     -L https://edu.mmcs.sfedu.ru/mod/assign/view.php > $null
 
-echo "Success!"
+echo "Готово! 😊"
