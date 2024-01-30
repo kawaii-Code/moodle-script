@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# uploadfiles: выкладывает файлы на мудл
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+if [ -z $1 ]; then
+    >&2 echo "Использование: uploadfiles <id лабы> файлы"
+    exit 1
+fi
+if [ ! -f "$SCRIPT_DIR/username.txt" ]; then
+    >&2 echo "Нужны username.txt и password.txt от мудла"
+    exit 1
+fi
+if [ ! -f "$SCRIPT_DIR/password.txt" ]; then
+    >&2 echo "Нужны username.txt и password.txt от мудла"
+    exit 1
+fi
+if [ ! -f "$SCRIPT_DIR/name.txt" ]; then
+    >&2 echo "Нужен name.txt: ваше имя (будет использовано в поле 'Автор' файла)"
+    exit 1
+fi
+
+USERNAME="$(cat "$SCRIPT_DIR/username.txt")"
+PASSWORD="$(cat "$SCRIPT_DIR/password.txt")"
+AUTHOR="$(cat "$SCRIPT_DIR/name.txt")"
+
+COOKIES_PATH="/tmp/uploadfilescookies"
+
+LOGIN_TOKEN="$(curl --cookie-jar "$COOKIES_PATH" -s https://edu.mmcs.sfedu.ru/login/index.php |
+    grep 'logintoken' |
+    head -n1 |
+    lua "$SCRIPT_DIR/extract_login_token.lua")"
+
+echo "Вход в аккаунт..."
+
+curl --cookie-jar "$COOKIES_PATH" -b "$COOKIES_PATH" -s \
+    -d "anchor="                                        \
+    -d "logintoken=$LOGIN_TOKEN"                        \
+    -d "username=$USERNAME"                             \
+    -d "password=$PASSWORD"                             \
+    -L https://edu.mmcs.sfedu.ru/login/index.php > /dev/null
+
+LAB_URL="https://edu.mmcs.sfedu.ru/mod/assign/view.php?id=$1"
+
+SESSKEY="$(curl -s -L -b "$COOKIES_PATH" "$LAB_URL" |
+    grep 'sesskey' |
+    head -n1 |
+    lua "$SCRIPT_DIR/extract_sesskey.lua")"
+
+ITEM_ID="$(curl -s -L -b "$COOKIES_PATH" "$LAB_URL&action=editsubmission" |
+   grep 'itemid' |
+   head -n1 |
+   lua "$SCRIPT_DIR/extract_itemid.lua")"
+
+for FILE in "${@:2}"; do
+    echo "Выкладывается '$FILE'"
+    curl -s -L -b "$COOKIES_PATH"               \
+        -F "repo_upload_file=@$FILE"            \
+        -F "repo_id=3"                          \
+        -F "env=filemanager"                    \
+        -F "savepath=/"                         \
+        -F "author=$AUTHOR"                     \
+        -F "itemid=$ITEM_ID"                    \
+        -F "sesskey=$SESSKEY"                   \
+        https://edu.mmcs.sfedu.ru/repository/repository_ajax.php?action=upload > /dev/null
+done
+
+echo "Сохранение ответа..."
+
+curl -s -L -b "$COOKIES_PATH"                   \
+    -d "action=savesubmission"                  \
+    -d "id=$1"                                  \
+    -d "userid=33045"                           \
+    -d "sesskey=$SESSKEY"                       \
+    -d "files_filemanager=$ITEM_ID"             \
+    -d "_qf__mod_assign_submission_form=1"      \
+    -d "mform_isexpanded_id_submissionheader=1" \
+    -L https://edu.mmcs.sfedu.ru/mod/assign/view.php > /dev/null
+
+echo "Готово! 😊"

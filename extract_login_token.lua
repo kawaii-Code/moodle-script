@@ -1,4 +1,4 @@
-local s = arg[1]
+local s = arg[1] or io.read('a')
 
 local firstQuote = string.find(s, 'value="')
 firstQuote = firstQuote + string.len('value="')

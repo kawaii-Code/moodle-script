@@ -1,4 +1,4 @@
-local s = arg[1]
+local s = arg[1] or io.read('a')
 
 local sesskeyBegin = string.find(s, 'sesskey=')
 if sesskeyBegin == nil then

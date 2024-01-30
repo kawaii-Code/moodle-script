@@ -1,8 +1,8 @@
-local s = arg[1]
+local s = arg[1] or io.read('a')
 
-local sesskeyBegin = string.find(s, 'itemid=')
-sesskeyBegin = sesskeyBegin + string.len('itemid=')
-local sesskeyEnd = string.find(s, '&', sesskeyBegin)
-sesskeyEnd = sesskeyEnd - 1
+local itemid = string.find(s, 'itemid=')
+itemid = itemid + string.len('itemid=')
+local itemend = string.find(s, '&', itemid)
+itemend = itemend - 1
 
-print(string.sub(s, sesskeyBegin, sesskeyEnd))
+print(string.sub(s, itemid, itemend))
